@@ -1,5 +1,5 @@
-base_model: WizardLM/WizardCoder-Python-13B-V1.0
-base_model_config: WizardLM/WizardCoder-Python-13B-V1.0
+base_model: codellama/CodeLlama-34b-Instruct-hf
+base_model_config: codellama/CodeLlama-34b-Instruct-hf
 model_type: LlamaForCausalLM
 tokenizer_type: LlamaTokenizer
 is_llama_derived_model: true
@@ -10,13 +10,13 @@ load_in_4bit: true
 strict: false
 
 datasets:
-  - path: /gcs/sasllama2-hf/relora/records.jsonl # or json
+  - path: /home/samsilverberg/gcp-kuberay/data/nflpp-1.jsonl # or json
     ds_type: json # see other options below
     type: alpaca
 
 dataset_prepared_path: last_run_prepared
 val_set_size: 0.01
-output_dir: /gcs/sasllama2-hf/relora-out2
+output_dir: gs://sasllama2-hf/relora-out2
 
 adapter: qlora
 lora_model_dir:

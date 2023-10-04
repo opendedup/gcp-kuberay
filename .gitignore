@@ -1,2 +1,6 @@
 datasets/*
 relora
+docker/Dockerfile
+*last_run_prepared*
+run.txt
+models

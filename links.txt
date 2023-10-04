@@ -1,1 +1,2 @@
 https://www.mlexpert.io/machine-learning/tutorials/alpaca-fine-tuning
+https://github.com/ray-project/ray/blob/workspace_templates_2.6.1/doc/source/templates/04_finetuning_llms_with_deepspeed/finetune_hf_llm.py

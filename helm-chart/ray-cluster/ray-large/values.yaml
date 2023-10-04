@@ -6,8 +6,8 @@
 # in this Helm chart.
 
 image:
-  repository: rayproject/ray-ml
-  tag: f2eaea-py310-cu118
+  repository: us-central1-docker.pkg.dev/lemmingsinthewind/ray/mcloud
+  tag: 0.8
   pullPolicy: IfNotPresent
 
 nameOverride: "kuberay"
@@ -19,32 +19,32 @@ imagePullSecrets: []
 head:
   # rayVersion determines the autoscaler's image version.
   # It should match the Ray version in the image of the containers.
-  # rayVersion: 2.7.0
+  rayVersion: 2.7.0
   # If enableInTreeAutoscaling is true, the autoscaler sidecar will be added to the Ray head pod.
   # Ray autoscaler integration is supported only for Ray versions >= 1.11.0
   # Ray autoscaler integration is Beta with KubeRay >= 0.3.0 and Ray >= 2.0.0.
-  # enableInTreeAutoscaling: true
+  enableInTreeAutoscaling: true
   # autoscalerOptions is an OPTIONAL field specifying configuration overrides for the Ray autoscaler.
   # The example configuration shown below represents the DEFAULT values.
-  # autoscalerOptions:
-    # upscalingMode: Default
+  autoscalerOptions:
+    upscalingMode: Default
     # idleTimeoutSeconds is the number of seconds to wait before scaling down a worker pod which is not using Ray resources.
-    # idleTimeoutSeconds: 60
+    idleTimeoutSeconds: 600
     # imagePullPolicy optionally overrides the autoscaler container's default image pull policy (IfNotPresent).
-    # imagePullPolicy: IfNotPresent
+    imagePullPolicy: IfNotPresent
     # Optionally specify the autoscaler container's securityContext.
-    # securityContext: {}
-    # env: []
-    # envFrom: []
+    securityContext: {}
+    env: []
+    envFrom: []
     # resources specifies optional resource request and limit overrides for the autoscaler container.
     # For large Ray clusters, we recommend monitoring container resource usage to determine if overriding the defaults is required.
-    # resources:
-    #   limits:
-    #     cpu: "500m"
-    #     memory: "512Mi"
-    #   requests:
-    #     cpu: "500m"
-    #     memory: "512Mi"
+    resources:
+       limits:
+         cpu: "500m"
+         memory: "512Mi"
+       requests:
+         cpu: "500m"
+         memory: "512Mi"
   labels: {}
   # Note: From KubeRay v0.6.0, users need to create the ServiceAccount by themselves if they specify the `serviceAccountName`
   # in the headGroupSpec. See https://github.com/ray-project/kuberay/pull/1128 for more details.
@@ -72,12 +72,12 @@ head:
   # for further guidance.
   resources:
     limits:
-      cpu: "1"
+      cpu: "6"
       # To avoid out-of-memory issues, never allocate less than 2G memory for the Ray head.
-      memory: "2G"
+      memory: "24G"
     requests:
-      cpu: "1"
-      memory: "2G"
+      cpu: "6"
+      memory: "24G"
   annotations: {}
   nodeSelector: {}
   tolerations: []
@@ -87,12 +87,6 @@ head:
   volumes:
     - name: log-volume
       emptyDir: {}
-    - name: gcs-fuse-csi-ephemeral
-      csi:
-        driver: gcsfuse.csi.storage.gke.io
-        volumeAttributes:
-          bucketName: rayraytraining
-          mountOptions: "implicit-dirs"
   # Ray writes logs to /tmp/ray/session_latests/logs
   volumeMounts:
     - mountPath: /tmp/ray
@@ -114,13 +108,15 @@ worker:
   rayStartParams:
       num-gpus: "8"
   replicas: 1
+  minReplicas: 1
+  maxReplicas: 4
   labels: {}
   serviceAccountName: "rayray-ksa"
   # containerEnv specifies environment variables for the Ray container,
   # Follows standard K8s container env schema.
-  containerEnv: []
-  # - name: EXAMPLE_ENV
-  #   value: "1"
+  containerEnv:
+  - name: CUDA_VISIBLE_DEVICES
+    value: "0,1,2,3,4,5,6,7"
   envFrom: []
     # - secretRef:
     #     name: my-env-secret
@@ -137,12 +133,12 @@ worker:
   # for further guidance.
   resources:
     limits:
-      cpu: "96"
+      cpu: "94"
       memory: "384G"
       nvidia.com/gpu: 8
     requests:
-      cpu: "16"
-      memory: "64G"
+      cpu: "72"
+      memory: "300G"
       nvidia.com/gpu: 8
   annotations: {}
   tolerations:
