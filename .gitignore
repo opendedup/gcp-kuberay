@@ -4,3 +4,4 @@ docker/Dockerfile
 *last_run_prepared*
 run.txt
 models
+books/archive.zip

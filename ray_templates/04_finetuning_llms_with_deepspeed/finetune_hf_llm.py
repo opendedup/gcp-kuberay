@@ -164,6 +164,7 @@ def training_function(kwargs: dict):
     config = kwargs["config"]
     args = argparse.Namespace(**kwargs["args"])
     model_id = config["model_name"]
+    model_revision = config["model_revision"]
 
     # Sample hyper-parameters for learning rate, batch size, seed and a few other HPs
     lr = config["lr"]
@@ -207,6 +208,8 @@ def training_function(kwargs: dict):
         torch_dtype=torch.bfloat16,
         # `use_cache=True` is incompatible with gradient checkpointing.
         use_cache=False,
+        max_position_embeddings=4096,
+        revision=model_revision
     )
     model.config.pad_token_id = model.config.eos_token_id
     print(f"Done loading model in {time.time() - s} seconds.")
@@ -399,11 +402,11 @@ def training_function(kwargs: dict):
             # It should be done on all processes (not just the Rank 0)
             # aggregate_on_rank_0 = False
             # checkpoint_model(
-            #     checkpoint_folder=tempdir,
-            #     ckpt_id=epoch,
-            #     model=model,
-            #     epoch=epoch,
-            #     last_global_step=step
+            #      checkpoint_folder=temp_checkpoint_dir,
+            #      ckpt_id=epoch,
+            #      model=model,
+            #      epoch=epoch,
+            #      last_global_step=step
             # )
 
             # Checkpointing strategy 2: Aggregate model on the rank 0 worker then upload
@@ -493,6 +496,9 @@ def parse_args():
         "--model_name", default="meta-llama/Llama-2-7b-hf", type=str
     )
     parser.add_argument(
+        "--model_revision", default="main", type=str
+    )
+    parser.add_argument(
         "--num-epochs", type=int, default=1, help="Number of epochs to train for."
     )
     parser.add_argument(
@@ -568,7 +574,11 @@ def main():
             "env_vars": {
                 "RAY_AIR_LOCAL_CACHE_DIR": os.environ["RAY_AIR_LOCAL_CACHE_DIR"],
                 "HUGGING_FACE_HUB_TOKEN": os.environ["HUGGING_FACE_HUB_TOKEN"],
+                "RAY_memory_monitor_refresh_ms": "0",
             },
+            "pip": [
+                "transformers>=4.34.0"
+            ],
             "excludes":["/data"],
             "working_dir": ".",
         }
@@ -578,7 +588,8 @@ def main():
     df = pd.read_json(args.dataset, lines=True)
     nflclass = Dataset.from_pandas(df)
     nflclass = nflclass.shuffle(seed=config["seed"])
-    nflclass = nflclass.train_test_split(test_size=0.1)
+    nflclass = nflclass.train_test_split(test_size=0.01)
+    print(nflclass)
     train_ds = ray.data.from_huggingface(nflclass["train"])
     valid_ds = ray.data.from_huggingface(nflclass["test"])
    
