@@ -34,20 +34,31 @@ kubectl annotate serviceaccount rayray-ksa \
 
 ```
 
-## Add an L4 Large Node Pool using g2-standard-96
+## Add an L4 Large Node Pool using g2-standard-96 in us-central1-a
 
 ```console
-gcloud container node-pools create raypool-gpu   --accelerator type=nvidia-l4,count=8,gpu-driver-version=latest   --machine-type g2-standard-96   --region=us-central1 --cluster gke-ray   --node-locations us-central1-a   --num-nodes 1   --enable-autoscaling    --min-nodes 0    --max-nodes 8
+gcloud container node-pools create raypool-gpu   --accelerator type=nvidia-l4,count=1,gpu-driver-version=latest   --machine-type g2-standard-96   --region=us-central1 --cluster gke-ray   --node-locations us-central1-a   --num-nodes 1   --enable-autoscaling    --min-nodes 0    --max-nodes 8 --disk-type "pd-balanced" --disk-size "1000" 
 ```
 
+## (Alternative) Add an (NVIDIA A100 40GB) Large Node Pool using a2-highgpu-1g in europe-west4
+
+```console
+gcloud beta container node-pools create "raypool-a100" --cluster "gke-ray" --region "europe-west4" --machine-type "a2-highgpu-1g" --accelerator "type=nvidia-tesla-a100,count=1" --image-type "COS_CONTAINERD" --disk-type "pd-balanced" --disk-size "1000" --metadata disable-legacy-endpoints=true --scopes "https://www.googleapis.com/auth/devstorage.read_only","https://www.googleapis.com/auth/logging.write","https://www.googleapis.com/auth/monitoring","https://www.googleapis.com/auth/servicecontrol","https://www.googleapis.com/auth/service.management.readonly","https://www.googleapis.com/auth/trace.append" --num-nodes "1" --enable-autoscaling --total-min-nodes "0" --total-max-nodes "4" --location-policy "BALANCED" --enable-autoupgrade --enable-autorepair --max-surge-upgrade 1 --max-unavailable-upgrade 0 --ephemeral-storage-local-ssd count=1
+```
+
+## (Alternative) Add an (NVIDIA A100 40GB) Large Node Pool using a2-ultragpu-1g in us-central1-a
+
+```console
+gcloud beta container node-pools create "raypool-a100-80" --cluster "gke-ray" --region "us-central1" --machine-type "a2-ultragpu-1g" --accelerator "type=nvidia-a100-80gb,count=1,gpu-driver-version=default" --image-type "COS_CONTAINERD" --disk-type "pd-balanced" --disk-size "1000" --metadata disable-legacy-endpoints=true --scopes "https://www.googleapis.com/auth/devstorage.read_only","https://www.googleapis.com/auth/logging.write","https://www.googleapis.com/auth/monitoring","https://www.googleapis.com/auth/servicecontrol","https://www.googleapis.com/auth/service.management.readonly","https://www.googleapis.com/auth/trace.append" --num-nodes "1" --enable-autoscaling --total-min-nodes "0" --total-max-nodes "8" --location-policy "ANY" --enable-autoupgrade --enable-autorepair --max-surge-upgrade 1 --max-unavailable-upgrade 0 --ephemeral-storage-local-ssd count=1 --node-locations us-central1-a
+```
 
 ## Enable Auto provisioning on the gke cluster
 ```console
 gcloud container clusters update gke-ray     --enable-autoprovisioning     --max-cpu 500     --max-memory 3000     --min-accelerator type=nvidia-l4,count=0     --max-accelerator type=nvidia-l4,count=32 --region=us-central1
 ```
-For A100's it would look like this
+For A100-40's it would look like this
 ```console
-gcloud container clusters update gke-ray     --enable-autoprovisioning     --max-cpu 500     --max-memory 3000     --min-accelerator type=nvidia-tesla-a100,count=0     --max-accelerator type=nvidia-tesla-a100,count=32 --region=europe-west4
+gcloud container clusters update gke-ray     --enable-autoprovisioning     --max-cpu 500     --max-memory 3000     --min-accelerator type=nvidia-tesla-a100,count=0,gpu-driver-version=latest     --max-accelerator type=nvidia-tesla-a100,count=32,gpu-driver-version=latest --region=europe-west4
 ```
 
 ## Set ray as the default namespace
@@ -55,4 +66,9 @@ gcloud container clusters update gke-ray     --enable-autoprovisioning     --max
 kubectl config set-context --current --namespace=ray
 ```
 
-### Copy the source to the ray cluster
+### Example Run for classificatoin
+```console
+export HUGGING_FACE_HUB_TOKEN=<huggingface token>
+export ANYSCALE_ARTIFACT_STORAGE=gs://<bucket_name>
+python finetune_hf_llm.py --batch-size-per-device 1 --eval-batch-size-per-device 1 --num-devices 5 --grad_accum 2 --model_name <model-name> --model_revision <model-revision> --num-epochs 1 --ctx-len 4096 --dataset data/nflpp-classification-2016-2023-3.jsonl --output_dir /tmp/ray
+```

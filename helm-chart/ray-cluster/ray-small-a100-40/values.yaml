@@ -107,8 +107,8 @@ worker:
   groupName: small-gpugroup
   rayStartParams:
       num-gpus: "1"
-  replicas: 2
-  minReplicas: 2
+  replicas: 5
+  minReplicas: 5
   maxReplicas: 32
   labels: {}
   serviceAccountName: "rayray-ksa"
@@ -131,12 +131,12 @@ worker:
   # for further guidance.
   resources:
     limits:
-      cpu: "8"
-      memory: "46G"
+      cpu: "10"
+      memory: "70G"
       nvidia.com/gpu: 1
     requests:
-      cpu: "8"
-      memory: "46G"
+      cpu: "10"
+      memory: "70G"
       nvidia.com/gpu: 1
   annotations: {}
   tolerations:

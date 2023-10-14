@@ -117,19 +117,6 @@ def evaluate(
     return perplexity, eval_loss
 
 
-def _test_tokenizer(model_name):
-    # This function tests that adding special tokens does not
-    # result in un-expected tokenization
-    # Context: https://github.com/huggingface/transformers/issues/25176
-    tokenizer = get_tokenizer(model_name=model_name)
-    testoutput = tokenizer("<REPR_END>inform")["input_ids"]
-    expected = tokenizer("inform")["input_ids"]
-    assert testoutput[-1] == expected[-1], (
-        "The tokenizer is not working as expected with special tokens, "
-        f"testoutput={testoutput}, expected={expected}"
-    )
-
-
 def checkpoint_model(
     checkpoint_folder, ckpt_id, model, epoch, last_global_step, **kwargs
 ):
