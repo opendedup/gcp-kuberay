@@ -5,23 +5,6 @@
     "bf16": {
         "enabled": true
     },
-    "optimizer": {
-        "type": "AdamW",
-        "params": {
-          "lr": 5e-6,
-          "betas": [0.8, 0.999],
-          "eps": 1e-8,
-          "weight_decay": 3e-7
-        }
-    },
-    "scheduler": {
-        "type": "WarmupLR",
-        "params": {
-            "warmup_min_lr": 0,
-            "warmup_max_lr": 0.001,
-            "warmup_num_steps": 10
-        }
-    },
     "zero_optimization": {
         "stage": 3,
         "offload_optimizer": {
@@ -42,6 +25,14 @@
         "stage3_max_reuse_distance": 1e9,
         "stage3_gather_16bit_weights_on_model_save": true,
         "round_robin_gradients": true
+    },
+    "flops_profiler": {
+        "enabled": true,
+        "profile_step": 10,
+        "module_depth": -1,
+        "top_modules": 1,
+        "detailed": true,
+        "output_file": null
     },
     "gradient_accumulation_steps": "auto",
     "gradient_clipping": "auto",

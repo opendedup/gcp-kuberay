@@ -36,21 +36,49 @@ from ray import train
 import ray.util.scheduling_strategies
 from ray.train.torch import TorchTrainer
 from ray.train import Checkpoint
-from ray.air.integrations.wandb import WandbLoggerCallback, setup_wandb
-from peft import get_peft_config, PeftModel, PeftConfig, get_peft_model, LoraConfig, TaskType
 
-from utils import (
-    get_checkpoint_and_refs_dir,
-    get_mirror_link,
-    download_model,
-    get_download_path,
-)
+
+
+import urllib.parse
+import os
+from google.cloud import storage
+import hashlib
 
 
 OPTIM_BETAS = (0.9, 0.999)
 OPTIM_EPS = 1e-8
 OPTIM_WEIGHT_DECAY = 0.0
 
+def download_to_local(url,local_folder):
+    print(f'Downloading {url} to {local_folder}')
+    # Get the bucket name
+    bucket_name = urllib.parse.urlparse(url).netloc
+
+    # Get the path
+    folder = urllib.parse.urlparse(url).path[1:]
+    print(folder)
+    storage_client = storage.Client()
+
+    bucket = storage_client.bucket(bucket_name)
+
+    blobs=bucket.list_blobs(prefix=folder, delimiter="/") #List all objects that satisfy the filter.
+    hash_value = hashlib.sha256(folder.encode()).hexdigest()
+    local_folder = '{}/model_{}'.format(local_folder, hash_value) 
+    
+    #  Create this folder locally if not exists
+    if not os.path.exists(local_folder):
+        os.makedirs(local_folder)
+
+    # Iterating through for loop one by one using API call
+    for blob in blobs:
+        if not blob.name.endswith("/"):
+            fn = os.path.basename(blob.name)
+            print(fn)
+            destination_uri = '{}/{}'.format(local_folder, fn)
+            if not os.path.exists(destination_uri):
+                blob.download_to_filename(destination_uri)
+                print('Downloaded {} to {}'.format(blob.name, destination_uri))
+    return local_folder
 
 def get_number_of_params(model: nn.Module):
     state_dict = model.state_dict()
@@ -152,7 +180,8 @@ def training_function(kwargs: dict):
     args = argparse.Namespace(**kwargs["args"])
     model_id = config["model_name"]
     model_revision = config["model_revision"]
-
+    if model_id.startswith("gs://"):
+        model_id = download_to_local(model_id,"/tmp")
     # Sample hyper-parameters for learning rate, batch size, seed and a few other HPs
     lr = config["lr"]
     num_epochs = int(config["num_epochs"])
@@ -179,7 +208,7 @@ def training_function(kwargs: dict):
 
     train_ds_len = len(list(train_ds.iter_batches(batch_size=1)))
 
-    tokenizer = get_tokenizer(model_name=args.model_name)
+    tokenizer = get_tokenizer(model_name=model_id)
     collate_partial = functools.partial(
         collate_fn,
         tokenizer=tokenizer,
@@ -195,7 +224,7 @@ def training_function(kwargs: dict):
         torch_dtype=torch.bfloat16,
         # `use_cache=True` is incompatible with gradient checkpointing.
         use_cache=False,
-        max_position_embeddings=4096,
+        max_position_embeddings=config["block_size"],
         revision=model_revision
     )
     model.config.pad_token_id = model.config.eos_token_id
@@ -218,6 +247,7 @@ def training_function(kwargs: dict):
         or "optimizer" not in accelerator.state.deepspeed_plugin.deepspeed_config
         else DummyOptim
     )
+
 
     optimizer = optimizer_cls(
         model.parameters(),
@@ -564,7 +594,9 @@ def main():
                 "RAY_memory_monitor_refresh_ms": "0",
             },
             "pip": [
-                "transformers>=4.34.0"
+                "transformers>=4.34.0",
+                "gcsfs",
+                "deepspeed[1bit_adam]"
             ],
             "excludes":["/data"],
             "working_dir": ".",
@@ -576,8 +608,9 @@ def main():
     nflclass = Dataset.from_pandas(df)
     nflclass = nflclass.shuffle(seed=config["seed"])
     nflclass = nflclass.train_test_split(test_size=0.01)
+    trainset = nflclass["train"]
     print(nflclass)
-    train_ds = ray.data.from_huggingface(nflclass["train"])
+    train_ds = ray.data.from_huggingface(trainset)
     valid_ds = ray.data.from_huggingface(nflclass["test"])
    
 
@@ -588,7 +621,7 @@ def main():
     artifact_storage = os.environ["ANYSCALE_ARTIFACT_STORAGE"]
     user_name = re.sub(r"\s+", "__", os.environ.get("ANYSCALE_USERNAME", "user"))
     storage_path = (
-        f"{artifact_storage}/{user_name}/ft_llms_with_deepspeed/{args.model_name}"
+        f"{artifact_storage}/{user_name}/ft_llms_with_deepspeed/"
     )
 
     trainer = TorchTrainer(
@@ -608,7 +641,7 @@ def main():
         scaling_config=train.ScalingConfig(
             num_workers=args.num_devices,
             use_gpu=True,
-            resources_per_worker={"GPU": 1, "CPU":8},
+            resources_per_worker={"GPU": 1, "CPU":5},
         ),
         datasets={"train": train_ds, "valid": valid_ds},
         dataset_config=ray.train.DataConfig(datasets_to_split=["train", "valid"]),

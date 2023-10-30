@@ -53,7 +53,9 @@ head:
     dashboard-host: '0.0.0.0'
   # containerEnv specifies environment variables for the Ray container,
   # Follows standard K8s container env schema.
-  containerEnv: []
+  containerEnv: 
+  - name: RAY_memory_monitor_refresh_ms
+    value: "0"
   # - name: EXAMPLE_ENV
   #   value: "1"
   envFrom: []
@@ -107,14 +109,16 @@ worker:
   groupName: small-gpugroup
   rayStartParams:
       num-gpus: "1"
-  replicas: 5
-  minReplicas: 5
-  maxReplicas: 32
+  replicas: 16
+  minReplicas: 16
+  maxReplicas: 16
   labels: {}
   serviceAccountName: "rayray-ksa"
   # containerEnv specifies environment variables for the Ray container,
   # Follows standard K8s container env schema.
-  containerEnv: []
+  containerEnv:
+  - name: RAY_memory_monitor_refresh_ms
+    value: "0"
   envFrom: []
     # - secretRef:
     #     name: my-env-secret
@@ -131,11 +135,11 @@ worker:
   # for further guidance.
   resources:
     limits:
-      cpu: "10"
+      cpu: "5"
       memory: "70G"
       nvidia.com/gpu: 1
     requests:
-      cpu: "10"
+      cpu: "5"
       memory: "70G"
       nvidia.com/gpu: 1
   annotations: {}

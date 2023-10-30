@@ -37,7 +37,7 @@ kubectl annotate serviceaccount rayray-ksa \
 ## Add an L4 Large Node Pool using g2-standard-96 in us-central1-a
 
 ```console
-gcloud container node-pools create raypool-gpu   --accelerator type=nvidia-l4,count=1,gpu-driver-version=latest   --machine-type g2-standard-96   --region=us-central1 --cluster gke-ray   --node-locations us-central1-a   --num-nodes 1   --enable-autoscaling    --min-nodes 0    --max-nodes 8 --disk-type "pd-balanced" --disk-size "1000" 
+gcloud container node-pools create raypool-gpu   --accelerator type=nvidia-l4,count=8,gpu-driver-version=latest   --machine-type g2-standard-96   --region=us-central1 --cluster gke-ray   --node-locations us-central1-a   --num-nodes 0   --enable-autoscaling    --min-nodes 0    --max-nodes 4 --disk-type "pd-balanced" --disk-size "2000"  
 ```
 
 ## (Alternative) Add an (NVIDIA A100 40GB) Large Node Pool using a2-highgpu-1g in europe-west4
